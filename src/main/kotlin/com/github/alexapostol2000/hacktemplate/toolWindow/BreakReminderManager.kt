@@ -4,8 +4,6 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBLabel
 import java.util.*
-import java.util.Timer
-import java.util.TimerTask
 import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
@@ -45,8 +43,7 @@ class BreakReminderManager(
                     val min = secondsSinceStart / 60
                     val sec = secondsSinceStart % 60
                     timeSinceStartLabel.text = "Time since start: ${min} min ${sec} sec"
-                    sessionStatsLabel.text =
-                        "Coding: ${codingSecondsTotal / 60} min | Breaks: ${breakSecondsTotal / 60} min"
+                    sessionStatsLabel.text = "Coding: ${codingSecondsTotal / 60} min | Breaks: ${breakSecondsTotal / 60} min"
                 }
 
                 val currentMinute = secondsSinceStart / 60
@@ -72,13 +69,17 @@ class BreakReminderManager(
         }, 0, 1000)
     }
 
+    fun startManualBreak() {
+        if (!breakInProgress) {
+            isManualBreak = true
+            startBreakTimer(breakDurationSeconds)
+        }
+    }
+
     private fun setupButton() {
         breakToggleButton.text = "Start Break"
         breakToggleButton.addActionListener {
-            if (!breakInProgress) {
-                isManualBreak = true
-                startBreakTimer(breakDurationSeconds)
-            }
+            startManualBreak()
         }
     }
 

@@ -6,22 +6,20 @@ import com.intellij.build.events.FailureResult
 import com.intellij.build.events.FinishBuildEvent
 import com.intellij.build.BuildProgressListener
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.ui.Messages
 import com.intellij.ui.components.JBLabel
 import java.util.*
 import java.util.concurrent.CopyOnWriteArrayList
 import javax.swing.SwingUtilities
 
 class BuildFailureTracker(
-    private val project: Project,
-    private val label: JBLabel
+    project: Project,
+    private val failedBuildLabel: JBLabel,
+    private val onHighFailureRate: (Int) -> Unit
 ) {
     private val failedBuildTimestamps = CopyOnWriteArrayList<Long>()
+    private val buildViewManager = project.getService(BuildViewManager::class.java)
 
     init {
-        val buildViewManager = project.getService(BuildViewManager::class.java)
-
-        // Timer pentru actualizare UI și curățare builduri vechi
         Timer().scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
                 val now = System.currentTimeMillis()
@@ -29,7 +27,7 @@ class BuildFailureTracker(
                 failedBuildTimestamps.removeIf { it < oneMinuteAgo }
 
                 SwingUtilities.invokeLater {
-                    label.text = "Failed builds (last 1 min): ${failedBuildTimestamps.size}"
+                    failedBuildLabel.text = "Failed builds (last 1 min): ${failedBuildTimestamps.size}"
                 }
             }
         }, 0, 5_000)
@@ -45,16 +43,10 @@ class BuildFailureTracker(
 
                     SwingUtilities.invokeLater {
                         val recentFails = failedBuildTimestamps.size
-                        label.text = "Failed builds (last 1 min): $recentFails"
+                        failedBuildLabel.text = "Failed builds (last 1 min): $recentFails"
 
                         if (recentFails >= 10) {
-                            Messages.showInfoMessage(
-                                project,
-                                "You've had $recentFails failed builds in the last minute.\nTake a breather! Stretch, relax, or get some ☕️",
-                                "Time for a Break?"
-                            )
-                            failedBuildTimestamps.clear()
-                            label.text = "Failed builds (last 1 min): 0"
+                            onHighFailureRate(recentFails)
                         }
                     }
                 }

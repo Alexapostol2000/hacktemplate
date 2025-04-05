@@ -11,10 +11,9 @@ class MyToolWindowFactory : ToolWindowFactory {
 
         val content = ContentFactory.getInstance().createContent(
             myToolWindow.getContent(),
-            "Statistics", // 👈 AICI modifici titlul tab-ului
+            "Statistics", // titlul tabului din IntelliJ
             false
         )
-
         toolWindow.contentManager.addContent(content)
     }
 
