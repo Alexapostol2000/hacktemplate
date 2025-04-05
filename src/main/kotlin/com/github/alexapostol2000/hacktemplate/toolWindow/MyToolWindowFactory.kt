@@ -1,45 +1,49 @@
 package com.github.alexapostol2000.hacktemplate.toolWindow
 
-import com.intellij.openapi.components.service
-import com.intellij.openapi.diagnostic.thisLogger
+import com.intellij.build.BuildViewManager
+import com.intellij.build.events.BuildEvent
+import com.intellij.build.events.FailureResult
+import com.intellij.build.events.FinishBuildEvent
+import com.intellij.build.BuildProgressListener
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.components.JBLabel
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.content.ContentFactory
-import com.github.alexapostol2000.hacktemplate.MyBundle
-import com.github.alexapostol2000.hacktemplate.services.MyProjectService
-import javax.swing.JButton
-
+import javax.swing.SwingUtilities
 
 class MyToolWindowFactory : ToolWindowFactory {
 
-    init {
-        thisLogger().warn("Don't forget to remove all non-needed sample code files with their corresponding registration entries in `plugin.xml`.")
-    }
-
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val myToolWindow = MyToolWindow(toolWindow)
+        val myToolWindow = MyToolWindow(project)
         val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
         toolWindow.contentManager.addContent(content)
     }
 
     override fun shouldBeAvailable(project: Project) = true
 
-    class MyToolWindow(toolWindow: ToolWindow) {
+    class MyToolWindow(project: Project) {
 
-        private val service = toolWindow.project.service<MyProjectService>()
+        private var failedBuildCount = 0
+        private val failedBuildLabel = JBLabel("Failed builds: $failedBuildCount")
+
+        init {
+            val buildViewManager = project.getService(BuildViewManager::class.java)
+            buildViewManager.addListener(object : BuildProgressListener {
+                override fun onEvent(buildId: Any, event: BuildEvent) {
+                    if (event is FinishBuildEvent && event.result is FailureResult) {
+                        failedBuildCount++
+                        SwingUtilities.invokeLater {
+                            failedBuildLabel.text = "Failed builds: $failedBuildCount"
+                        }
+                    }
+                }
+            }, project)
+        }
 
         fun getContent() = JBPanel<JBPanel<*>>().apply {
-            val label = JBLabel(MyBundle.message("randomLabel", "?"))
-
-            add(label)
-            add(JButton(MyBundle.message("shuffle")).apply {
-                addActionListener {
-                    label.text = MyBundle.message("randomLabel", service.getRandomNumber())
-                }
-            })
+            add(failedBuildLabel)
         }
     }
 }
