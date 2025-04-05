@@ -1,4 +1,4 @@
-package org.jetbrains.plugins.template
+package com.github.alexapostol2000.hacktemplate
 
 import com.intellij.DynamicBundle
 import org.jetbrains.annotations.NonNls
