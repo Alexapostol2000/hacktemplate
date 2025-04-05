@@ -6,6 +6,7 @@ import com.intellij.ui.components.JBLabel
 import java.util.*
 import java.util.Timer
 import java.util.TimerTask
+import javax.swing.JButton
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 
@@ -13,23 +14,29 @@ class BreakReminderManager(
     private val project: Project,
     private val timeSinceStartLabel: JBLabel,
     private val sessionStatsLabel: JBLabel,
-    private val labelsToHideDuringBreak: List<JComponent>
+    private val labelsToHideDuringBreak: List<JComponent>,
+    private val breakToggleButton: JButton
 ) {
-    private val breakIntervalMinutes = 1            // Test rapid
-    private val breakDurationSeconds = 30           // Test rapid
+    private val breakIntervalMinutes = 1
+    private val breakDurationSeconds = 30
 
     private var secondsSinceStart = 0
     private var codingSecondsTotal = 0
     private var breakSecondsTotal = 0
     private var breakInProgress = false
+    private var waitingForResumeConfirmation = false
     private var lastBreakPromptMinute = -1
+
+    private var isManualBreak = false
 
     private val timer = Timer()
 
     init {
+        setupButton()
+
         timer.scheduleAtFixedRate(object : TimerTask() {
             override fun run() {
-                if (breakInProgress) return
+                if (breakInProgress || waitingForResumeConfirmation) return
 
                 secondsSinceStart++
                 codingSecondsTotal++
@@ -38,8 +45,8 @@ class BreakReminderManager(
                     val min = secondsSinceStart / 60
                     val sec = secondsSinceStart % 60
                     timeSinceStartLabel.text = "Time since start: ${min} min ${sec} sec"
-
-                    sessionStatsLabel.text = "Coding: ${codingSecondsTotal / 60} min | Breaks: ${breakSecondsTotal / 60} min"
+                    sessionStatsLabel.text =
+                        "Coding: ${codingSecondsTotal / 60} min | Breaks: ${breakSecondsTotal / 60} min"
                 }
 
                 val currentMinute = secondsSinceStart / 60
@@ -56,7 +63,8 @@ class BreakReminderManager(
                             null
                         )
                         if (response == Messages.YES) {
-                            startBreakTimer()
+                            isManualBreak = false
+                            startBreakTimer(breakDurationSeconds)
                         }
                     }
                 }
@@ -64,27 +72,42 @@ class BreakReminderManager(
         }, 0, 1000)
     }
 
-    private fun startBreakTimer() {
+    private fun setupButton() {
+        breakToggleButton.text = "Start Break"
+        breakToggleButton.addActionListener {
+            if (!breakInProgress) {
+                isManualBreak = true
+                startBreakTimer(breakDurationSeconds)
+            }
+        }
+    }
+
+    private fun startBreakTimer(duration: Int) {
         breakInProgress = true
 
         SwingUtilities.invokeLater {
             labelsToHideDuringBreak.forEach { it.isVisible = false }
+            breakToggleButton.isEnabled = false
 
-            BreakPopupWindow(breakDurationSeconds) {
+            BreakPopupWindow(
+                durationSeconds = duration,
+                showSkipButton = !isManualBreak,
+                showStopButton = isManualBreak
+            ) {
                 breakInProgress = false
-                breakSecondsTotal += breakDurationSeconds
+                breakSecondsTotal += duration
+                waitingForResumeConfirmation = true
 
                 SwingUtilities.invokeLater {
-                    labelsToHideDuringBreak.forEach { it.isVisible = true }
-
                     Messages.showInfoMessage(
                         project,
                         "Pauza s-a terminat. Welcome back!",
                         "Gata cu pauza!"
                     )
 
-                    // update UI imediat după pauză
-                    sessionStatsLabel.text = "Coding: ${codingSecondsTotal / 60} min | Breaks: ${breakSecondsTotal / 60} min"
+                    waitingForResumeConfirmation = false
+                    labelsToHideDuringBreak.forEach { it.isVisible = true }
+                    breakToggleButton.isEnabled = true
                 }
             }
         }

@@ -11,11 +11,14 @@ import java.io.BufferedInputStream
 
 class BreakPopupWindow(
     private val durationSeconds: Int,
+    private val showSkipButton: Boolean,
+    private val showStopButton: Boolean,
     private val onBreakFinished: () -> Unit
 ) : JDialog() {
 
     private val timeLabel = JLabel("", SwingConstants.CENTER)
     private val skipButton = JButton("Skip Break")
+    private val stopButton = JButton("Stop Break")
     private var secondsLeft = durationSeconds
     private val timer = Timer()
 
@@ -26,15 +29,19 @@ class BreakPopupWindow(
         preferredSize = Dimension(320, 180)
 
         timeLabel.font = Font("Arial", Font.BOLD, 36)
-        skipButton.font = Font("Arial", Font.PLAIN, 16)
-        skipButton.addActionListener {
-            timer.cancel()
-            finishBreak()
-        }
 
         val buttonPanel = JPanel().apply {
             layout = FlowLayout()
-            add(skipButton)
+
+            if (showSkipButton) {
+                skipButton.addActionListener { stopEarly() }
+                add(skipButton)
+            }
+
+            if (showStopButton) {
+                stopButton.addActionListener { stopEarly() }
+                add(stopButton)
+            }
         }
 
         add(timeLabel, BorderLayout.CENTER)
@@ -67,6 +74,11 @@ class BreakPopupWindow(
         }, 1000, 1000)
 
         isVisible = true
+    }
+
+    private fun stopEarly() {
+        timer.cancel()
+        finishBreak()
     }
 
     private fun updateLabel() {

@@ -8,7 +8,13 @@ import com.intellij.ui.content.ContentFactory
 class MyToolWindowFactory : ToolWindowFactory {
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
         val myToolWindow = MyToolWindow(project)
-        val content = ContentFactory.getInstance().createContent(myToolWindow.getContent(), null, false)
+
+        val content = ContentFactory.getInstance().createContent(
+            myToolWindow.getContent(),
+            "Statistics", // 👈 AICI modifici titlul tab-ului
+            false
+        )
+
         toolWindow.contentManager.addContent(content)
     }
 
